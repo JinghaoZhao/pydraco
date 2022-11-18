@@ -8,6 +8,7 @@
 #include "draco/core/vector_d.h"
 #include "draco/mesh/triangle_soup_mesh_builder.h"
 #include "draco/point_cloud/point_cloud_builder.h"
+#include "draco/io/ply_decoder.h"
 #include <iostream>
 
 #define STRINGIFY(x) #x
@@ -106,7 +107,84 @@ MeshObject decode_buffer(const char *buffer, std::size_t buffer_len) {
   return meshObject;
 }
 
-PointCloudObject decode_buffer_to_point_cloud(const char *buffer, std::size_t buffer_len) {
+PointCloudObject decode_ply_to_point_cloud(const char *buffer, std::size_t buffer_len) {
+  PointCloudObject pointCloudObject;
+  draco::DecoderBuffer decoderBuffer;
+  draco::PointCloud point_cloud;
+  draco::PlyDecoder plyDecoder;
+
+  decoderBuffer.Init(buffer, buffer_len);
+
+  auto status = plyDecoder.DecodeFromBuffer(&decoderBuffer, &point_cloud);
+  if (!status.ok()) {
+	std::string status_string = status.error_msg_string();
+	pointCloudObject.decode_status = failed_during_decoding;
+	return pointCloudObject;
+  }
+
+  const int pos_att_id = point_cloud.GetNamedAttributeId(draco::GeometryAttribute::POSITION);
+  const int color_att_id = point_cloud.GetNamedAttributeId(draco::GeometryAttribute::COLOR);
+  const int normal_att_id = point_cloud.GetNamedAttributeId(draco::GeometryAttribute::NORMAL);
+
+  if (pos_att_id < 0) {
+	pointCloudObject.decode_status = no_position_attribute;
+	return pointCloudObject;
+  }
+  pointCloudObject.points.reserve(3*point_cloud.num_points());
+  if (color_att_id >= 0) {
+	pointCloudObject.rgba.reserve(3*point_cloud.num_points());
+  }
+  if (normal_att_id >= 0) {
+	pointCloudObject.normal.reserve(3*point_cloud.num_points());
+  }
+
+  const auto *const pos_att = point_cloud.attribute(pos_att_id);
+  const auto *const color_att = (color_att_id >= 0) ? (point_cloud.attribute(color_att_id)) : NULL;
+  const auto *const normal_att = (normal_att_id >= 0) ? (point_cloud.attribute(normal_att_id)) : NULL;
+  std::array<float, 3> pos_val;
+  std::array<float, 3> rgba_val;
+  std::array<float, 3> normal_val;
+
+  for (draco::PointIndex v(0); v < point_cloud.num_points(); ++v) {
+	if (!pos_att->ConvertValue<float, 3>(pos_att->mapped_index(v), &pos_val[0])) {
+	  pointCloudObject.decode_status = no_position_attribute;
+	  return pointCloudObject;
+	}
+	pointCloudObject.points.push_back(pos_val[0]);
+	pointCloudObject.points.push_back(pos_val[1]);
+	pointCloudObject.points.push_back(pos_val[2]);
+	if (color_att) {
+	  if (color_att->ConvertValue<float, 3>(color_att->mapped_index(v), &rgba_val[0])) {
+		pointCloudObject.rgba.push_back(rgba_val[0]);
+		pointCloudObject.rgba.push_back(rgba_val[1]);
+		pointCloudObject.rgba.push_back(rgba_val[2]);
+	  }
+	}
+
+	if (normal_att) {
+	  if (normal_att->ConvertValue<float, 3>(normal_att->mapped_index(v), &normal_val[0])) {
+		pointCloudObject.normal.push_back(normal_val[0]);
+		pointCloudObject.normal.push_back(normal_val[1]);
+		pointCloudObject.normal.push_back(normal_val[2]);
+	  }
+	}
+
+  }
+  const draco::GeometryMetadata *metadata = point_cloud.GetMetadata();
+  pointCloudObject.encoding_options_set = false;
+  if (metadata) {
+	metadata->GetEntryInt("quantization_bits", &(pointCloudObject.quantization_bits));
+	if (metadata->GetEntryDouble("quantization_range", &(pointCloudObject.quantization_range)) &&
+		metadata->GetEntryDoubleArray("quantization_origin", &(pointCloudObject.quantization_origin))) {
+	  pointCloudObject.encoding_options_set = true;
+	}
+  }
+
+  pointCloudObject.decode_status = successful;
+  return pointCloudObject;
+}
+
+PointCloudObject decode_drc_to_point_cloud(const char *buffer, std::size_t buffer_len) {
   PointCloudObject pointCloudObject;
   draco::DecoderBuffer decoderBuffer;
   decoderBuffer.Init(buffer, buffer_len);
@@ -350,7 +428,8 @@ PYBIND11_MODULE(pydraco, m) {
            :toctree: _generate
 
            encode_point_cloud
-           decode_buffer_to_point_cloud
+           decode_drc_to_point_cloud
+           decode_ply_to_point_cloud
     )pbdoc";
 
   py::class_<PointCloudObject>(m, "PointCloud")
@@ -369,8 +448,12 @@ PYBIND11_MODULE(pydraco, m) {
 	  encode_point_cloud
   )pbdoc");
 
-  m.def("decode_buffer_to_point_cloud", &decode_buffer_to_point_cloud, R"pbdoc(
-        decode_buffer_to_point_cloud
+  m.def("decode_drc_to_point_cloud", &decode_drc_to_point_cloud, R"pbdoc(
+        decode_drc_to_point_cloud
+    )pbdoc");
+
+  m.def("decode_ply_to_point_cloud", &decode_ply_to_point_cloud, R"pbdoc(
+        decode_ply_to_point_cloud
     )pbdoc");
 
 #ifdef VERSION_INFO
