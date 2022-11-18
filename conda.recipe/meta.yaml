@@ -1,0 +1,38 @@
+package:
+  name: pydraco
+  version: 0.0.1
+
+source:
+  path: ..
+
+build:
+  number: 0
+  script: python -m pip install . -vvv
+
+requirements:
+  build:
+    - "{{ compiler('cxx') }}"
+    - cmake
+    - ninja
+
+  host:
+    - python
+    - pip
+
+  run:
+    - python
+
+
+test:
+  requires:
+    - pytest
+  imports:
+    - pydraco
+  source_files:
+    - tests
+  commands:
+    - python -m pytest
+
+about:
+  summary: A CMake example project built with pybind11.
+  license_file: LICENSE
