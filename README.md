@@ -1,6 +1,6 @@
 # pydraco
 
-A python wrapper for the Google Draco https://github.com/google/draco
+A python wrapper for the Google [Draco](https://github.com/google/draco) 3D compression engine
 
 ## Prerequisites
 
