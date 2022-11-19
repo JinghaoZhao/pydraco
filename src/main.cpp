@@ -130,46 +130,27 @@ PointCloudObject decode_ply_to_point_cloud(const char *buffer, std::size_t buffe
 	pointCloudObject.decode_status = no_position_attribute;
 	return pointCloudObject;
   }
-  pointCloudObject.points.reserve(3*point_cloud.num_points());
+  pointCloudObject.points.resize(3*point_cloud.num_points());
   if (color_att_id >= 0) {
-	pointCloudObject.rgba.reserve(3*point_cloud.num_points());
+	pointCloudObject.rgba.resize(3*point_cloud.num_points());
   }
   if (normal_att_id >= 0) {
-	pointCloudObject.normal.reserve(3*point_cloud.num_points());
+	pointCloudObject.normal.resize(3*point_cloud.num_points());
   }
 
   const auto *const pos_att = point_cloud.attribute(pos_att_id);
   const auto *const color_att = (color_att_id >= 0) ? (point_cloud.attribute(color_att_id)) : NULL;
   const auto *const normal_att = (normal_att_id >= 0) ? (point_cloud.attribute(normal_att_id)) : NULL;
-  std::array<float, 3> pos_val;
-  std::array<float, 3> rgba_val;
-  std::array<float, 3> normal_val;
 
-  for (draco::PointIndex v(0); v < point_cloud.num_points(); ++v) {
-	if (!pos_att->ConvertValue<float, 3>(pos_att->mapped_index(v), &pos_val[0])) {
-	  pointCloudObject.decode_status = no_position_attribute;
-	  return pointCloudObject;
-	}
-	pointCloudObject.points.push_back(pos_val[0]);
-	pointCloudObject.points.push_back(pos_val[1]);
-	pointCloudObject.points.push_back(pos_val[2]);
-	if (color_att) {
-	  if (color_att->ConvertValue<float, 3>(color_att->mapped_index(v), &rgba_val[0])) {
-		pointCloudObject.rgba.push_back(rgba_val[0]);
-		pointCloudObject.rgba.push_back(rgba_val[1]);
-		pointCloudObject.rgba.push_back(rgba_val[2]);
-	  }
-	}
-
-	if (normal_att) {
-	  if (normal_att->ConvertValue<float, 3>(normal_att->mapped_index(v), &normal_val[0])) {
-		pointCloudObject.normal.push_back(normal_val[0]);
-		pointCloudObject.normal.push_back(normal_val[1]);
-		pointCloudObject.normal.push_back(normal_val[2]);
-	  }
-	}
-
+  int buffer_size = pos_att->buffer()->data_size();
+  memcpy(&pointCloudObject.points[0], pos_att->buffer()->data(), buffer_size);
+  if (color_att) {
+	memcpy(&pointCloudObject.rgba[0], color_att->buffer()->data(), buffer_size);
   }
+  if (normal_att) {
+	memcpy(&pointCloudObject.normal[0], normal_att->buffer()->data(), buffer_size);
+  }
+
   const draco::GeometryMetadata *metadata = point_cloud.GetMetadata();
   pointCloudObject.encoding_options_set = false;
   if (metadata) {
@@ -209,46 +190,27 @@ PointCloudObject decode_drc_to_point_cloud(const char *buffer, std::size_t buffe
 	pointCloudObject.decode_status = no_position_attribute;
 	return pointCloudObject;
   }
-  pointCloudObject.points.reserve(3*point_cloud->num_points());
+  pointCloudObject.points.resize(3*point_cloud->num_points());
   if (color_att_id >= 0) {
-	pointCloudObject.rgba.reserve(3*point_cloud->num_points());
+	pointCloudObject.rgba.resize(3*point_cloud->num_points());
   }
   if (normal_att_id >= 0) {
-	pointCloudObject.normal.reserve(3*point_cloud->num_points());
+	pointCloudObject.normal.resize(3*point_cloud->num_points());
   }
 
   const auto *const pos_att = point_cloud->attribute(pos_att_id);
   const auto *const color_att = (color_att_id >= 0) ? (point_cloud->attribute(color_att_id)) : NULL;
   const auto *const normal_att = (normal_att_id >= 0) ? (point_cloud->attribute(normal_att_id)) : NULL;
-  std::array<float, 3> pos_val;
-  std::array<float, 3> rgba_val;
-  std::array<float, 3> normal_val;
 
-  for (draco::PointIndex v(0); v < point_cloud->num_points(); ++v) {
-	if (!pos_att->ConvertValue<float, 3>(pos_att->mapped_index(v), &pos_val[0])) {
-	  pointCloudObject.decode_status = no_position_attribute;
-	  return pointCloudObject;
-	}
-	pointCloudObject.points.push_back(pos_val[0]);
-	pointCloudObject.points.push_back(pos_val[1]);
-	pointCloudObject.points.push_back(pos_val[2]);
-	if (color_att) {
-	  if (color_att->ConvertValue<float, 3>(color_att->mapped_index(v), &rgba_val[0])) {
-		pointCloudObject.rgba.push_back(rgba_val[0]);
-		pointCloudObject.rgba.push_back(rgba_val[1]);
-		pointCloudObject.rgba.push_back(rgba_val[2]);
-	  }
-	}
-
-	if (normal_att) {
-	  if (normal_att->ConvertValue<float, 3>(normal_att->mapped_index(v), &normal_val[0])) {
-		pointCloudObject.normal.push_back(normal_val[0]);
-		pointCloudObject.normal.push_back(normal_val[1]);
-		pointCloudObject.normal.push_back(normal_val[2]);
-	  }
-	}
-
+  int buffer_size = pos_att->buffer()->data_size();
+  memcpy(&pointCloudObject.points[0], pos_att->buffer()->data(), buffer_size);
+  if (color_att) {
+	memcpy(&pointCloudObject.rgba[0], color_att->buffer()->data(), buffer_size);
   }
+  if (normal_att) {
+	memcpy(&pointCloudObject.normal[0], normal_att->buffer()->data(), buffer_size);
+  }
+
   const draco::GeometryMetadata *metadata = point_cloud->GetMetadata();
   pointCloudObject.encoding_options_set = false;
   if (metadata) {
